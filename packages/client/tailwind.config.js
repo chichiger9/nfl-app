@@ -6,31 +6,32 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Color tokens resolve to CSS custom properties defined in globals.css.
+      // Each var carries a bare "R G B" triplet so Tailwind alpha modifiers
+      // (e.g. `bg-rouge/40`) keep working under either theme. The actual
+      // palettes live in `:root` (dark) and `[data-theme="light"]`.
       colors: {
-        // Off-black neutral base (no pure #000)
         ink: {
-          950: '#0b0c0e',
-          900: '#101216',
-          800: '#161a20',
-          700: '#1d2128',
-          600: '#262b34',
-          500: '#3a414d',
-          400: '#5a6373',
-          300: '#8a93a3',
-          200: '#b8bfcc',
-          100: '#dde1e8',
-          50: '#eef0f4',
+          950: 'rgb(var(--ink-950) / <alpha-value>)',
+          900: 'rgb(var(--ink-900) / <alpha-value>)',
+          800: 'rgb(var(--ink-800) / <alpha-value>)',
+          700: 'rgb(var(--ink-700) / <alpha-value>)',
+          600: 'rgb(var(--ink-600) / <alpha-value>)',
+          500: 'rgb(var(--ink-500) / <alpha-value>)',
+          400: 'rgb(var(--ink-400) / <alpha-value>)',
+          300: 'rgb(var(--ink-300) / <alpha-value>)',
+          200: 'rgb(var(--ink-200) / <alpha-value>)',
+          100: 'rgb(var(--ink-100) / <alpha-value>)',
+          50: 'rgb(var(--ink-50) / <alpha-value>)',
         },
-        // Single desaturated accent — quiet emerald (no AI purple, < 80% sat)
         signal: {
-          DEFAULT: '#3fa57f',
-          fg: '#9ee0c2',
-          bg: '#0e2a22',
-          line: '#1e4a3c',
+          DEFAULT: 'rgb(var(--signal) / <alpha-value>)',
+          fg: 'rgb(var(--signal-fg) / <alpha-value>)',
+          bg: 'rgb(var(--signal-bg) / <alpha-value>)',
+          line: 'rgb(var(--signal-line) / <alpha-value>)',
         },
-        // Status semantics (also desaturated)
-        warn: '#c79b4a',
-        rouge: '#c46a6a',
+        warn: 'rgb(var(--warn) / <alpha-value>)',
+        rouge: 'rgb(var(--rouge) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],

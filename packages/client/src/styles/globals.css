@@ -2,16 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Theme tokens
+  ------------
+  Color values live as bare "R G B" channel triplets so Tailwind's alpha
+  modifier syntax (e.g. `bg-ink-900/60`) keeps working under either palette.
+  Surface/material tokens that don't need alpha modifiers (glass, scrim,
+  shadow) are stored as full color expressions.
+
+  Default = dark. Light theme is opt-in via `<html data-theme="light">`,
+  which is set pre-hydration by the inline script in `_app.tsx`.
+*/
+
 @layer base {
   :root {
     color-scheme: dark;
+
+    --ink-950: 11 12 14;
+    --ink-900: 16 18 22;
+    --ink-800: 22 26 32;
+    --ink-700: 29 33 40;
+    --ink-600: 38 43 52;
+    --ink-500: 58 65 77;
+    --ink-400: 90 99 115;
+    --ink-300: 138 147 163;
+    --ink-200: 184 191 204;
+    --ink-100: 221 225 232;
+    --ink-50: 238 240 244;
+
+    --signal: 63 165 127;
+    --signal-fg: 158 224 194;
+    --signal-bg: 14 42 34;
+    --signal-line: 30 74 60;
+
+    --warn: 199 155 74;
+    --rouge: 196 106 106;
+
+    /* Compound surfaces — chrome that needs more than a single channel. */
+    --glass-bg: rgba(16, 18, 22, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.06);
+    --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --glass-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+
+    /* Ambient hero glow — accent washes in the corners. */
+    --glow-1: rgba(63, 165, 127, 0.08);
+    --glow-2: rgba(63, 165, 127, 0.05);
+  }
+
+  [data-theme='light'] {
+    color-scheme: light;
+
+    /* Inverted ink scale: 950 = page bg (white), 50 = strongest text. */
+    --ink-950: 255 255 255;
+    --ink-900: 247 248 250;
+    --ink-800: 238 240 244;
+    --ink-700: 221 225 232;
+    --ink-600: 184 191 204;
+    --ink-500: 138 147 163;
+    --ink-400: 90 99 115;
+    --ink-300: 58 65 77;
+    --ink-200: 38 43 52;
+    --ink-100: 22 26 32;
+    --ink-50: 11 12 14;
+
+    /* Same emerald family, retuned for AA contrast on a white surface. */
+    --signal: 45 138 106;
+    --signal-fg: 28 107 81;
+    --signal-bg: 232 245 239;
+    --signal-line: 168 213 193;
+
+    --warn: 176 122 45;
+    --rouge: 177 69 69;
+
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(11, 12, 14, 0.08);
+    --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --glass-shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.16);
+
+    --glow-1: rgba(45, 138, 106, 0.06);
+    --glow-2: rgba(45, 138, 106, 0.04);
   }
 
   html,
   body,
   #__next {
-    background: theme('colors.ink.950');
-    color: theme('colors.ink.50');
+    background: rgb(var(--ink-950));
+    color: rgb(var(--ink-50));
     min-height: 100dvh;
   }
 
@@ -19,6 +95,11 @@
     font-feature-settings: 'cv11', 'ss01', 'ss03';
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Quiet cross-fade when the user flips themes. Stays on transform/opacity
+       cousins (color/bg) — never animates layout properties. */
+    transition:
+      background-color 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+      color 0.32s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   /* Subtle ambient grain — fixed, GPU-isolated, never on a scrolling container */
@@ -31,19 +112,19 @@
     background-image:
       radial-gradient(
         1200px 600px at 85% -10%,
-        rgba(63, 165, 127, 0.08),
+        var(--glow-1),
         transparent 60%
       ),
       radial-gradient(
         900px 500px at -10% 110%,
-        rgba(63, 165, 127, 0.05),
+        var(--glow-2),
         transparent 60%
       );
   }
 
   ::selection {
-    background: theme('colors.signal.line');
-    color: theme('colors.signal.fg');
+    background: rgb(var(--signal-line));
+    color: rgb(var(--signal-fg));
   }
 
   /* Scrollbar polish */
@@ -55,12 +136,12 @@
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
-    background: theme('colors.ink.700');
+    background: rgb(var(--ink-700));
     border-radius: 999px;
-    border: 2px solid theme('colors.ink.950');
+    border: 2px solid rgb(var(--ink-950));
   }
   *::-webkit-scrollbar-thumb:hover {
-    background: theme('colors.ink.600');
+    background: rgb(var(--ink-600));
   }
 
   /* Reset native form chrome */
@@ -74,7 +155,7 @@
   input:focus-visible,
   select:focus-visible,
   [tabindex]:focus-visible {
-    outline: 1px solid theme('colors.signal.DEFAULT');
+    outline: 1px solid rgb(var(--signal));
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -83,22 +164,20 @@
 @layer components {
   /* Liquid-glass surface — inner border + inset highlight to fake refraction */
   .glass {
-    background: rgba(16, 18, 22, 0.72);
+    background: var(--glass-bg);
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 30px 60px -30px rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-inset), var(--glass-shadow);
   }
 
   /* Skeletal shimmer block */
   .skeleton {
     background: linear-gradient(
       90deg,
-      theme('colors.ink.800') 0%,
-      theme('colors.ink.700') 50%,
-      theme('colors.ink.800') 100%
+      rgb(var(--ink-800)) 0%,
+      rgb(var(--ink-700)) 50%,
+      rgb(var(--ink-800)) 100%
     );
     background-size: 200% 100%;
     animation: shimmer 2.4s linear infinite;
@@ -107,7 +186,8 @@
 
   /* Tactile feedback — physical "press" on action elements */
   .tactile {
-    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transition:
+      transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
       color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
       border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
       background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -137,8 +217,8 @@
     width: 14px;
     height: 14px;
     border-radius: 9999px;
-    border: 1.5px solid theme('colors.ink.700');
-    border-top-color: theme('colors.signal.fg');
+    border: 1.5px solid rgb(var(--ink-700));
+    border-top-color: rgb(var(--signal-fg));
     animation: infinite-spin 0.85s cubic-bezier(0.5, 0.1, 0.5, 1) infinite;
     will-change: transform;
   }

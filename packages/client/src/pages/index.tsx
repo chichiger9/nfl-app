@@ -21,6 +21,7 @@ import { SearchBar } from '../components/SearchBar';
 import { Filters } from '../components/Filters';
 import { PlayersTable } from '../components/PlayersTable';
 import { PlayerDetailModal } from '../components/PlayerDetailModal';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const PAGE_SIZE = 25;
 
@@ -172,11 +173,10 @@ export default function Home() {
           name="description"
           content="A clean, fast index of NFL players powered by the Sleeper API."
         />
-        <meta name="theme-color" content="#0b0c0e" />
       </Head>
 
       <main className="relative z-10 mx-auto max-w-[1280px] px-4 pb-24 pt-10 md:px-8 md:pt-16">
-        {/* Asymmetric hero — title left, live status right */}
+        {/* Asymmetric hero — title left, live status + theme toggle right */}
         <header className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto] md:items-end">
           <div className="space-y-2">
             <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-400">
@@ -202,10 +202,13 @@ export default function Home() {
             </p>
           </div>
 
-          <LiveBadge
-            total={total ?? null}
-            label={hasFilters ? 'matching' : 'indexed'}
-          />
+          <div className="flex items-center gap-2 md:self-end">
+            <LiveBadge
+              total={total ?? null}
+              label={hasFilters ? 'matching' : 'indexed'}
+            />
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Toolbar — search + filters separated by negative space, no card */}
@@ -354,7 +357,7 @@ export default function Home() {
 
 function LiveBadge({ total, label }: { total: number | null; label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-full border border-ink-800 bg-ink-900/40 px-3.5 py-2 text-[12px] text-ink-200 md:self-end">
+    <div className="flex items-center gap-3 rounded-full border border-ink-800 bg-ink-900/40 px-3.5 py-2 text-[12px] text-ink-200">
       <span className="relative inline-flex h-2 w-2 shrink-0">
         <span className="absolute inset-0 animate-breathe rounded-full bg-signal opacity-60" />
         <span className="relative inline-block h-2 w-2 rounded-full bg-signal" />

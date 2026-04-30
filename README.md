@@ -54,31 +54,6 @@ yarn type-check
 yarn lint
 ```
 
-## How it's structured
-
-```
-packages/
-  shared/   -> @shared/types  (Player, PlayersQuery, PlayersResponse, PlayersMeta)
-  server/   -> @server/api    (Express; reference impl + unit tests)
-    src/sleeper.ts            -> fetch + normalize the Sleeper payload
-    src/cache.ts              -> 24h TTL cache with in-flight promise dedup
-    src/filter.ts             -> pure queryPlayers() (the testable unit)
-    src/routes/players.ts     -> GET /api/players, /meta, /:id
-    src/__tests__/filter.test.ts
-  client/   -> @client/web    (Next.js pages router; what gets deployed)
-    src/pages/index.tsx       -> main page (state + data fetching)
-    src/pages/api/players/    -> Netlify-deployed serverless API
-       index.ts               -> GET /api/players (search/filter/sort/paginate)
-       meta.ts                -> GET /api/players/meta
-       [id].ts                -> GET /api/players/:id
-    src/server/               -> sleeper.ts, cache.ts, filter.ts (mirrors @server/api)
-    src/components/           -> SearchBar, Filters, PlayersTable, PlayerDetailModal
-    src/hooks/                -> useDebounce, useFavorites
-    src/lib/api.ts            -> typed client
-    src/styles/globals.css    -> all styles
-```
-
-`packages/client/src/server/` and `packages/server/src/` contain the same fetch/cache/filter logic. The duplication is intentional: the Express server is preserved for unit tests and as a reference implementation, while the Next API routes are what actually ship.
 
 ### Backend cache + Sleeper quirks
 
@@ -108,7 +83,6 @@ project to keep the page payload small).
 | Pure `queryPlayers` separated from the route | Inline logic | Pure function is trivially unit-testable. |
 | Favorites in `localStorage` | Server-side via Postgres/SQLite/Supabase | Spec allows local. Saves significant time. The cost is no cross-device sync. |
 | Next.js API routes for production, Express kept for tests | Single Express service deployed separately | Netlify-only deploy with no external service; cold starts are infrequent and the 24h TTL still applies per warm instance. |
-| Pages router | App router | Matched starter; switching is not core. |
 | Plain CSS in `globals.css` | Tailwind, MUI, CSS modules | Tailwind needs config + scanning setup; MUI is a chunky dep; CSS modules add overhead. Plain CSS is the fastest route to a presentable UI in 2 hours. |
 | Vitest | Jest | Vitest is zero-config with TS path aliases via `vitest.config.ts`. |
 | Drop entries without `last_name` from `/api/players` | Keep them and show "—" everywhere | The table is materially noisier with thousands of nameless records. They're still reachable via `/:id` if needed. |
