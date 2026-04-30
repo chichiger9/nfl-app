@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import {
-  ArrowLeft,
-  ArrowRight,
   ArrowsClockwise,
+  CheckCircle,
   MagnifyingGlass,
   Warning,
 } from '@phosphor-icons/react';
@@ -17,6 +16,7 @@ import type {
 import { fetchMeta, fetchPlayers } from '../lib/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useFavorites } from '../hooks/useFavorites';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { SearchBar } from '../components/SearchBar';
 import { Filters } from '../components/Filters';
 import { PlayersTable } from '../components/PlayersTable';
@@ -45,12 +45,6 @@ export default function Home() {
 
   const [sort, setSort] = useState<SortField | ''>('last_name');
   const [dir, setDir] = useState<SortDir>('asc');
-  const [page, setPage] = useState(1);
-
-  const [response, setResponse] = useState<PlayersResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   const [selected, setSelected] = useState<Player | null>(null);
 
@@ -63,12 +57,6 @@ export default function Home() {
     Boolean(status) ||
     favoritesOnly;
 
-  // Reset to page 1 whenever filters/search change.
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, position, team, status, favoritesOnly, sort, dir]);
-
-  // Fetch meta once.
   useEffect(() => {
     fetchMeta()
       .then(setMeta)
@@ -80,58 +68,69 @@ export default function Home() {
     return Array.from(favorites).join(',');
   }, [favoritesOnly, favorites]);
 
-  // Fetch players whenever query changes.
-  useEffect(() => {
-    if (favoritesOnly && !hydrated) return;
+  // Skip the network entirely while we're either waiting for favorites to
+  // hydrate or the user has flipped on "Show Favorites Only" with an empty
+  // set. Both states must clear accumulated rows — `enabled` flipping is
+  // part of the hook's reset trigger.
+  const noFavoritesEdge = favoritesOnly && hydrated && favorites.size === 0;
+  const fetchEnabled = !((favoritesOnly && !hydrated) || noFavoritesEdge);
 
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+  const fetchPlayersPage = useCallback(
+    (pageNumber: number) =>
+      fetchPlayers({
+        page: pageNumber,
+        limit: PAGE_SIZE,
+        q: debouncedSearch || undefined,
+        position: position || undefined,
+        team: team || undefined,
+        status: status || undefined,
+        sort: sort || undefined,
+        dir,
+        ids: idsParam,
+      }).then(
+        (res: PlayersResponse) => ({ data: res.data, total: res.total }),
+      ),
+    [debouncedSearch, position, team, status, sort, dir, idsParam],
+  );
 
-    if (favoritesOnly && favorites.size === 0) {
-      setResponse({ data: [], total: 0, page: 1, limit: PAGE_SIZE });
-      setLoading(false);
-      return;
-    }
-
-    fetchPlayers({
-      page,
-      limit: PAGE_SIZE,
-      q: debouncedSearch || undefined,
-      position: position || undefined,
-      team: team || undefined,
-      status: status || undefined,
-      sort: sort || undefined,
+  const {
+    items: players,
+    total: rawTotal,
+    page: loadedPages,
+    hasMore,
+    isLoading,
+    isInitialLoading,
+    error,
+    sentinelRef,
+    retry,
+  } = useInfiniteScroll<Player>({
+    fetchPage: fetchPlayersPage,
+    deps: [
+      debouncedSearch,
+      position,
+      team,
+      status,
+      sort,
       dir,
-      ids: idsParam,
-    })
-      .then((res) => {
-        if (!cancelled) setResponse(res);
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      favoritesOnly,
+      idsParam,
+      hydrated,
+    ],
+    enabled: fetchEnabled,
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    debouncedSearch,
-    position,
-    team,
-    status,
-    sort,
-    dir,
-    page,
-    favoritesOnly,
-    favorites,
-    idsParam,
-    hydrated,
-    reloadKey,
-  ]);
+  const total = noFavoritesEdge ? 0 : rawTotal;
+  const isHydrating = favoritesOnly && !hydrated;
+
+  const showSkeleton = isInitialLoading || isHydrating;
+  const showInitialError = !showSkeleton && loadedPages === 0 && error !== null;
+  const showResults = !showSkeleton && !showInitialError && players.length > 0;
+  const showEmpty =
+    !showSkeleton && !showInitialError && players.length === 0 && total === 0;
+  const showLoadingMore = showResults && hasMore && isLoading;
+  const showNextPageError = showResults && error !== null;
+  const showEndOfList =
+    showResults && !hasMore && total !== null && total > 0 && !error;
 
   const onSort = useCallback(
     (field: SortField) => {
@@ -164,12 +163,6 @@ export default function Home() {
     setSort('last_name');
     setDir('asc');
   }, []);
-
-  const totalPages = response ? Math.max(1, Math.ceil(response.total / PAGE_SIZE)) : 1;
-  const players = response?.data ?? [];
-  const showSkeleton = loading && !response;
-  const showResults = response && response.total > 0 && !showSkeleton;
-  const showEmpty = response && response.total === 0 && !showSkeleton && !error;
 
   return (
     <>
@@ -210,7 +203,7 @@ export default function Home() {
           </div>
 
           <LiveBadge
-            total={response?.total ?? null}
+            total={total ?? null}
             label={hasFilters ? 'matching' : 'indexed'}
           />
         </header>
@@ -236,43 +229,26 @@ export default function Home() {
           />
         )}
 
-        {error && (
-          <ErrorBanner
-            message={`Error loading players: ${error}`}
-            onRetry={() => setReloadKey((k) => k + 1)}
-          />
-        )}
-
         {/* Results meta line — anti-card, divider only */}
         <div className="mt-10 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-ink-800 pb-3">
           <div className="flex items-baseline gap-3 font-mono text-[12px] tracking-wide text-ink-300">
             {showSkeleton ? (
               <span className="skeleton h-3 w-32 rounded" />
-            ) : response && response.total > 0 ? (
+            ) : players.length > 0 && total !== null && total > 0 ? (
               <>
                 <span className="text-ink-50">
-                  {(page - 1) * PAGE_SIZE + 1}
-                  <span className="text-ink-500">–</span>
-                  {Math.min(page * PAGE_SIZE, response.total)}
+                  1<span className="text-ink-500">–</span>
+                  {players.length.toLocaleString()}
                 </span>
                 <span className="text-ink-500">of</span>
                 <span className="text-ink-200">
-                  {response.total.toLocaleString()}
+                  {total.toLocaleString()}
                 </span>
-                {loading && (
-                  <span className="ml-2 inline-flex items-center gap-1 text-ink-400">
-                    <ArrowsClockwise
-                      size={11}
-                      weight="bold"
-                      className="animate-spin"
-                      style={{ animationDuration: '1.4s' }}
-                    />
-                    Updating
-                  </span>
-                )}
               </>
-            ) : (
+            ) : total === 0 ? (
               <span className="text-ink-400">No matching players</span>
+            ) : (
+              <span className="text-ink-400">—</span>
             )}
           </div>
           {sort && (
@@ -313,40 +289,51 @@ export default function Home() {
             />
           )}
 
-          {showEmpty && (
-            <EmptyState hasFilters={hasFilters} onReset={onReset} />
+          {showEmpty && <EmptyState hasFilters={hasFilters} onReset={onReset} />}
+
+          {showInitialError && (
+            <InitialErrorState message={error} onRetry={retry} />
           )}
         </section>
 
-        {showResults && totalPages > 1 && (
-          <nav
-            aria-label="Pagination"
-            className="mt-10 flex items-center justify-between gap-3 border-t border-ink-800 pt-6"
+        {/* Sentinel + scroll feedback — only mounted while there's more to load. */}
+        {showResults && hasMore && !error && (
+          <div ref={sentinelRef} aria-hidden="true" className="infinite-sentinel" />
+        )}
+
+        {showLoadingMore && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-6 flex items-center justify-center gap-3 py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-ink-400"
           >
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-              className="tactile inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900/60 px-4 py-2 text-sm text-ink-100 hover:border-ink-600 hover:bg-ink-900 disabled:cursor-not-allowed disabled:border-ink-800 disabled:bg-transparent disabled:text-ink-500"
-            >
-              <ArrowLeft size={14} weight="bold" />
-              Previous
-            </button>
-            <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-400">
-              Page <span className="text-ink-50">{page}</span>
-              <span className="mx-2 text-ink-600">/</span>
-              <span className="text-ink-200">{totalPages.toLocaleString()}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-              className="tactile inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900/60 px-4 py-2 text-sm text-ink-100 hover:border-ink-600 hover:bg-ink-900 disabled:cursor-not-allowed disabled:border-ink-800 disabled:bg-transparent disabled:text-ink-500"
-            >
-              Next
-              <ArrowRight size={14} weight="bold" />
-            </button>
-          </nav>
+            <span className="infinite-spinner" aria-hidden="true" />
+            <span>
+              Loading <span className="text-ink-200">{PAGE_SIZE}</span> more
+            </span>
+          </div>
+        )}
+
+        {showNextPageError && (
+          <NextPageError
+            message={error}
+            nextPage={loadedPages + 1}
+            onRetry={retry}
+          />
+        )}
+
+        {showEndOfList && (
+          <div
+            role="status"
+            className="mt-8 flex items-center justify-center gap-4 border-t border-ink-800 pt-6 font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500"
+          >
+            <span className="h-px w-10 bg-ink-700" />
+            <span className="inline-flex items-center gap-2">
+              <CheckCircle size={12} weight="bold" className="text-signal" />
+              End of roster · {total!.toLocaleString()} indexed
+            </span>
+            <span className="h-px w-10 bg-ink-700" />
+          </div>
         )}
       </main>
 
@@ -406,6 +393,70 @@ function ErrorBanner({
           Retry
         </button>
       )}
+    </div>
+  );
+}
+
+function NextPageError({
+  message,
+  nextPage,
+  onRetry,
+}: {
+  message: string;
+  nextPage: number;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rouge/30 bg-rouge/[0.05] px-4 py-3 text-sm text-rouge"
+    >
+      <span className="inline-flex items-center gap-2">
+        <Warning size={14} weight="bold" />
+        Couldn't load page {nextPage}
+        <span className="text-rouge/70">· {message}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="tactile inline-flex items-center gap-1.5 rounded-md border border-rouge/40 px-3 py-1 text-[12px] text-rouge hover:bg-rouge/10"
+      >
+        <ArrowsClockwise size={12} weight="bold" />
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function InitialErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="mt-10 grid place-items-center px-4 py-16 text-center"
+    >
+      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-rouge/30 bg-rouge/[0.05] text-rouge">
+        <Warning size={20} weight="regular" />
+      </div>
+      <p className="mt-5 text-[14.5px] font-medium text-ink-100">
+        Couldn't load the roster.
+      </p>
+      <p className="mt-1 max-w-[44ch] text-[13px] leading-relaxed text-ink-400">
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="tactile mt-5 inline-flex items-center gap-2 rounded-lg border border-rouge/30 bg-rouge/[0.06] px-4 py-2 text-sm text-rouge hover:border-rouge/50 hover:bg-rouge/10"
+      >
+        <ArrowsClockwise size={13} weight="bold" />
+        Retry
+      </button>
     </div>
   );
 }

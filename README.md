@@ -30,14 +30,9 @@ The app ships two equivalent backends:
 
 ## Deploy on Netlify
 
-The whole app deploys to Netlify with no external backend service. Settings:
+The whole app deploys to Netlify with no external backend service. Link:
 
-- **Build command:** `yarn workspace @shared/types build && yarn workspace @client/web build`
-- **Publish directory:** `packages/client/.next`
-- **Functions directory:** _(blank)_
-- **Environment variables:** none required
-
-A repo-root [netlify.toml](netlify.toml) declares this and pulls in `@netlify/plugin-nextjs`, which automatically deploys every file under `pages/api/` as a serverless function.
+https://nfl-app-chichiger.netlify.app/
 
 ### Cold-start cache caveat
 
@@ -135,13 +130,8 @@ project to keep the page payload small).
 
 ## What I used AI for
 
-- **Used AI for:** scaffolding the route handler boilerplate, the
-  `useDebounce` and `useFavorites` hooks (standard patterns), the basic
-  CSS layout, and the `formatValue` helper in the modal.
-- **Didn't use AI for:** the test fixture and assertions (deliberately
-  hand-written so the tests aren't validating themselves), the cache
-  in-flight dedup logic (subtle race condition; safer to write
-  deliberately), and the decision tree in this README.
+- **Used AI for:** Technical implementation was entirely done by AI, but technical decisions (such as what packages to use, how to interpret the API data, where to host, etc.) were all done by me.
+- **Didn't use AI for:** Technical decisions, setting up Netlify deployment and hosting, initial API investigation.
 - **Where AI tried to mislead me:** suggested using `node-fetch` (not
   needed in Node 22), suggested `supertest` for the unit test (heavier
   than necessary for testing pure logic), and offered to dump all
