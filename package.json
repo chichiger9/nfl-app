@@ -1,0 +1,29 @@
+{
+  "name": "interviews-senior",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "22.x",
+    "yarn": ">=1.22.0 <4.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspaces run dev",
+    "dev:all": "./scripts/dev.sh",
+    "build": "yarn workspaces run build",
+    "lint": "yarn workspaces run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "yarn workspaces run type-check"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.0"
+  }
+}

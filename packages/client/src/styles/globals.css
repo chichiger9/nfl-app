@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #__next {
+    background: theme('colors.ink.950');
+    color: theme('colors.ink.50');
+    min-height: 100dvh;
+  }
+
+  body {
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Subtle ambient grain — fixed, GPU-isolated, never on a scrolling container */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(
+        1200px 600px at 85% -10%,
+        rgba(63, 165, 127, 0.08),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at -10% 110%,
+        rgba(63, 165, 127, 0.05),
+        transparent 60%
+      );
+  }
+
+  ::selection {
+    background: theme('colors.signal.line');
+    color: theme('colors.signal.fg');
+  }
+
+  /* Scrollbar polish */
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: theme('colors.ink.700');
+    border-radius: 999px;
+    border: 2px solid theme('colors.ink.950');
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.ink.600');
+  }
+
+  /* Reset native form chrome */
+  select {
+    appearance: none;
+    background-image: none;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 1px solid theme('colors.signal.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Liquid-glass surface — inner border + inset highlight to fake refraction */
+  .glass {
+    background: rgba(16, 18, 22, 0.72);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Skeletal shimmer block */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      theme('colors.ink.800') 0%,
+      theme('colors.ink.700') 50%,
+      theme('colors.ink.800') 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.4s linear infinite;
+    border-radius: 4px;
+  }
+
+  /* Tactile feedback — physical "press" on action elements */
+  .tactile {
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+  }
+  .tactile:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  /* Cascade index — used for staggered fade-up reveals */
+  .cascade > * {
+    animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--idx, 0) * 28ms);
+  }
+}

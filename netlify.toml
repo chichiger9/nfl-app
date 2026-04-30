@@ -1,0 +1,7 @@
+[build]
+  base = "."
+  command = "yarn workspace @shared/types build && yarn workspace @client/web build"
+  publish = "packages/client/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
